@@ -1,39 +1,50 @@
-var canvas = document.getElementById("canvas");
+// Define canvas for drawing objects
+const canvas = document.getElementById("canvas");
 
-var ctx = canvas.getContext("2d");
-var circles = [];
-var squares = [];
-
+// Parameters to change
 const circleColors = ["red", "green", "blue"];
 const coverColor = "grey";
-
 const CIRCLE_RADIUS = 50;
-CANVAS_WIDTH = canvas.width;
-CANVAS_HEIGHT = canvas.height;
-CENTER_X = CANVAS_WIDTH / 2;
-CENTER_Y = CANVAS_HEIGHT / 2;
-const numSwapPoints = 100;
+const SPEED = 1;
 const ELLIPSE_RATIO = 0.4;
+const NUM_CIRCLES = 3;
 
 const vertVal = Math.sqrt(3) / 2;
 const spacingRatio = 0.7;
-let circlePositions = [[0, (-vertVal * 2) / 3], [-0.5, vertVal / 3], [0.5, vertVal / 3]];
-circlePositions = circlePositions.map(x => [
+
+let relPositions = [[0, (-vertVal * 2) / 3], [-0.5, vertVal / 3], [0.5, vertVal / 3]];
+
+// Parameters not to change
+const CANVAS_WIDTH = canvas.width;
+const CANVAS_HEIGHT = canvas.height;
+const CENTER_X = CANVAS_WIDTH / 2;
+const CENTER_Y = CANVAS_HEIGHT / 2;
+const numSwapPoints = 100 / SPEED;
+const circleInitialPositions = relPositions.map(x => [
   x[0] * CANVAS_HEIGHT * spacingRatio + CENTER_X,
   x[1] * CANVAS_HEIGHT * spacingRatio + CENTER_Y + (vertVal * spacingRatio * CANVAS_HEIGHT) / 6
 ]);
 
-var c1 = new Circle(circlePositions[0][0], circlePositions[0][1], CIRCLE_RADIUS, circleColors[0]);
-var c2 = new Circle(circlePositions[1][0], circlePositions[1][1], CIRCLE_RADIUS, circleColors[1]);
-var c3 = new Circle(circlePositions[2][0], circlePositions[2][1], CIRCLE_RADIUS, circleColors[2]);
+// Global variables
+let ctx = canvas.getContext("2d");
+let circles = [];
+let squares = [];
 
-circles.push(c1);
-circles.push(c2);
-circles.push(c3);
+// Initialize circles
+for (let i = 0; i < NUM_CIRCLES; i++) {
+  circles.push(
+    new Circle(
+      circleInitialPositions[i][0],
+      circleInitialPositions[i][1],
+      CIRCLE_RADIUS,
+      circleColors[i]
+    )
+  );
+}
 
-// Circle object
+// Circle Class
 function Circle(x, y, rad, color) {
-  var _this = this;
+  let _this = this;
 
   // constructor
   (function() {
@@ -44,7 +55,7 @@ function Circle(x, y, rad, color) {
     _this.hidden = false;
   })();
 
-  this.moveTo = function(ctx, x, y) {
+  this.moveTo = function(x, y) {
     _this.x = x;
     _this.y = y;
   };
@@ -55,13 +66,11 @@ function Circle(x, y, rad, color) {
   this.unhide = function() {
     _this.hidden = false;
   };
-  this.draw = function(ctx) {
+  this.draw = function() {
     if (_this.hidden) {
       sideWidth = _this.radius * 2.0;
       ctx.fillStyle = "grey";
       ctx.fillRect(_this.x - sideWidth / 2, _this.y - sideWidth / 2, sideWidth, sideWidth);
-
-      // ctx.fill();
     } else {
       ctx.beginPath();
       ctx.arc(_this.x, _this.y, _this.radius, 0, 2 * Math.PI, false);
@@ -71,25 +80,29 @@ function Circle(x, y, rad, color) {
   };
 }
 
-function refreshCirclePositions() {
-  for (var i = 0; i < circles.length; i++) {
-    circles[i].moveTo(ctx, circlePositions[i][0], circlePositions[i][1]);
+// Refresh initial positions of circles
+function refreshCircleInitialPositions() {
+  for (let i = 0; i < NUM_CIRCLES; i++) {
+    circles[i].moveTo(circleInitialPositions[i][0], circleInitialPositions[i][1]);
   }
 }
 
+// Draw all circles (necessary after any change to canvas)
 function drawAll() {
   ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-  for (var i = 0; i < circles.length; i++) {
-    circles[i].draw(ctx);
+  for (let i = 0; i < NUM_CIRCLES; i++) {
+    circles[i].draw();
   }
 }
 
+// Rotate x,y point around the origin by angle
 function rotate(x, y, angle) {
   const nx = x * Math.cos(angle) - y * Math.sin(angle);
   const ny = y * Math.cos(angle) + x * Math.sin(angle);
   return [nx, ny];
 }
 
+// Calculate elliptical path for swap
 function getSwapPath(c1X, c1Y, c2X, c2Y) {
   let points;
   const diffX = c2X - c1X;
@@ -114,6 +127,7 @@ function getSwapPath(c1X, c1Y, c2X, c2Y) {
   return points;
 }
 
+// Run one swap
 function runSwap(index1, index2) {
   return new Promise(function(resolve, reject) {
     const c1X = circles[index1].x;
@@ -124,11 +138,12 @@ function runSwap(index1, index2) {
     const path1 = getSwapPath(c1X, c1Y, c2X, c2Y);
     const path2 = getSwapPath(c2X, c2Y, c1X, c1Y);
 
+    // Animation for a swap
     function doSwapAnimation(index1, index2, path1, path2, i) {
       if (i < numSwapPoints) {
         ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-        circles[index1].moveTo(ctx, path1[i][0], path1[i][1]);
-        circles[index2].moveTo(ctx, path2[i][0], path2[i][1]);
+        circles[index1].moveTo(path1[i][0], path1[i][1]);
+        circles[index2].moveTo(path2[i][0], path2[i][1]);
 
         drawAll();
 
@@ -146,27 +161,32 @@ function runSwap(index1, index2) {
   });
 }
 
+// Hide every circle
 function hideCircles() {
-  for (var i = 0; i < circles.length; i++) {
+  for (let i = 0; i < NUM_CIRCLES; i++) {
     circles[i].hide();
   }
 }
 
+// Unhide every circle
 function unhideCircles() {
-  for (var i = 0; i < circles.length; i++) {
+  for (let i = 0; i < NUM_CIRCLES; i++) {
     circles[i].unhide();
   }
 }
 
+// Pause execution for t milliseconds
 function pause(t) {
   return new Promise(function(resolve) {
     setTimeout(resolve.bind(), t);
   });
 }
 
+// Read keyboard key from user if user presses one
 const readKey = () =>
   new Promise(resolve => window.addEventListener("keypress", resolve, { once: true }));
 
+// Pause until user presses the correct keyboard key: keyName
 async function waitForNextKey(keyName) {
   const keyPressed = await readKey();
   if (String.fromCharCode(keyPressed.which) !== keyName) {
@@ -174,13 +194,21 @@ async function waitForNextKey(keyName) {
   }
 }
 
+// Make guess functionality (Not yet implemented)
 function makeGuess() {}
 
+// Update an html div with text
+function updateDiv(divId, text) {
+  document.getElementById(divId).innerText = text;
+}
+
+// Run one experiment trial
 async function runTrial(swaps, trialIndex) {
   hideCircles();
   drawAll();
   await pause(1000);
 
+  // Make each swap
   for (let s = 0; s < swaps.length; s++) {
     const swap = swaps[s];
     await runSwap(swap[0] - 1, swap[1] - 1);
@@ -194,10 +222,7 @@ async function runTrial(swaps, trialIndex) {
   drawAll();
 }
 
-function updateDiv(divId, text) {
-  document.getElementById(divId).innerText = text;
-}
-
+// Main code execution
 async function main() {
   requestAnimationFrame(drawAll);
 
@@ -205,6 +230,8 @@ async function main() {
     updateDiv("status", `Trial ${i + 1}: Press 's' key to begin trial`);
     await waitForNextKey("s");
     updateDiv("status", `Trial ${i + 1}`);
+
+    // Get correct swaps from global TRIALS variable, and run one trial with that data
     trialId = TRIALIDS[i];
     const swaps = TRIALS[trialId].swaps;
     await runTrial(swaps, i);
